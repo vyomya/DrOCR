@@ -1,0 +1,24 @@
+==============================================================
+  OCR BATCH WER SUMMARY REPORT
+  Images evaluated : 3
+==============================================================
+
+Images processed:
+  29.jpg
+  31.jpg
+  37.jpg
+
+Metric                              Qwen2.5-VL         PaddleOCR         Tesseract            Nougat
+----------------------------------------------------------------------------------------------------
+Avg WER (%)                               27.8             29.15             59.55             80.87
+Corpus WER (%)                           34.48             30.54             60.59             86.21
+Total substitutions                         26                38                98                37
+Total deletions                             27                19                23               136
+Total insertions                            17                 5                 2                 2
+Total hits                                 150               146                82                30
+Total ref words                            203               203               203               203
+
+Notes:
+  Avg WER    = mean of per-image WER scores
+  Corpus WER = (sub+del+ins) / total_ref_words across all images
+             = more stable metric when image lengths vary

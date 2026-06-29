@@ -1,0 +1,36 @@
+U.S. Department of Defense
+Medical Services
+DD FORM 1289
+1 NOV 71
+DOD PRESCRIPTION
+
+FOR (Full name, address, & phone number) (If under 12, give age)
+John R. Doe, HM3, USN
+
+U.S.S. Neverforgotten (DD 178)
+
+MEDICAL FACILITY                          DATE
+U.S.S. Neverforgotten (DD 178)            23 Jan 99
+
+Rx (Superscription)                       gm or ml.
+
+    (Inscription)
+        Tr Belladonna                     15 ml
+        Amphogel qsad                     120 ml
+
+    (Subscription)
+        M & ft Solution
+
+    (Signa)
+        Seg: 5mR t.i.d a.c.
+
+MFGR:   Wyeth                   EXP DATE:   12/02
+LOT NO: P39K106                 FILLED BY:  KMT
+
+                                Jack R. Frost
+                                LCDR. MD. USNR
+
+Rx NUMBER    10072              SIGNATURE RANK AND DEGREE
+
+EDITION OF 1 JAN 60 MAY BE USED FOR
+S/N 0102-LF-012-6201

@@ -1,0 +1,33 @@
+cont. from pg 56
+
+Page 57 Project: Li electrodeposition - glyme electrolytes
+
+June 4 Goal: Screen electrolyte 240604-B for stable Li plating at 30°C
+Electrolyte: 1M LiTFSI in diglyme : EtOH (4:1 v/v), 20 mL tot
+
+Add 5 mol% 12-crown-4 as additive. Stir 20 min
+  → T @ 22.4°C, glovebox H₂O < 1 ppm
+
+Working elec.: glassy C RDE (0.3 cm²); CE: Li foil; ref: Ag/AgCl
+
+--------------------------------------------------------------------------
+
+Deposition run 240604-B1
+  Apply -0.45V vs Ag/AgCl, 90 min, ω = 1600 rpm
+  J = 0.50 mA/cm²  and  0.3 cm²
+
+  $$\frac{0.5 \text{ mA}}{\text{cm}^2} \cdot 0.3 \text{ cm}^2 = 1.5 \text{ E-4 A}$$
+  t = 90 min = 5400 s
+
+  Q = 1.5E-4 A · 5400 s = 0.81 A·s = 0.81 C
+
+  n = $\frac{Q}{zF}$ = $\frac{0.81 \text{ C}}{96485 \text{ C/mol}}$ = $8.4 \text{ E-6 mol}$ $\frac{6.94 \text{ g Li}}{\text{mol Li}}$ = $5.8 \text{ E-5}$
+  $$1 e^- = 1 Li^+$$
+
+--------------------------------------------------------------------------
+
+Electrode Temperature test: hot plate at 30°C
+  0 min     22.4°C      20 min      30.1°C      Film looks grey + dull
+  1 min     23.1°C      40 min      31.5°C      XRD min peak at 
+  5 min     25.6°C      1 hr        32.0°C      2θ = 2.1° (low intens.)
+  10 min    27.9°C      1 hr 30min  32.6°C      Shoulder at 2θ = 4.7°
