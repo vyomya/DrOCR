@@ -1,37 +1,47 @@
-# Handwritten Scientific Notes OCR Pipeline
+# Doctor Prescription OCR Pipeline
 
-This project transcribes handwritten and printed scientific/technical notes: including text, LaTeX-formatted mathematics, hand-drawn chemical structures, reaction diagrams, and tables using **Qwen2.5-VL-7B-Instruct**, and benchmarks it against two zero-shot OCR baselines (**PaddleOCR**, **Tesseract**) using Word Error Rate (WER).
+A multimodal OCR pipeline for transcribing handwritten and printed **medical prescriptions** — patient and prescriber information, drug entries, dosages, abbreviations, and instructions — using **Qwen2.5-VL-7B-Instruct** with few-shot prompting, benchmarked against three zero-shot baselines (**PaddleOCR**, **Tesseract**, **Nougat**) across an entire folder of prescription images using Word Error Rate (WER).
 
-[Video demonstration](https://drive.google.com/file/d/1eDDqdOAr2k1J8abAa733XRwpZ1afwvnL/view?usp=sharing)
+This is the proof-of-concept accompanying the written report and presentation for the Cotiviti Intern Assessment.
+
+| Deliverable | Link |
+|---|---|
+| 📄 Written Report (Word) | [Add your link here] |
+| 📊 Slide Presentation (PowerPoint) | [Add your link here] |
+| 🎥 Video Demonstration | [Add your link here] |
 
 ---
 
-## Methods
+## Why prescription OCR
 
-This pipeline runs three OCR approaches on the same input image so their outputs can be directly compared.
+Handwritten prescriptions carry a documented error rate of 35.7%, compared to 2.5% for electronic prescriptions — a fourteen-fold difference — and illegible handwriting is linked to roughly 7,000 deaths annually in the United States alone. This pipeline demonstrates how a vision-language model, properly prompted for the clinical domain, can extract structured, verifiable data from a handwritten prescription image: drug names, dosages, routes, frequencies, and instructions — the exact fields a pharmacy verification or claims-adjudication system needs.
 
-### 1. Zero-shot baselines: PaddleOCR and Tesseract
+---
 
-`ocr_paddleocr()` and `ocr_tesseract()` run the target image through general-purpose OCR engines. They return plain, unstructured text. There is no awareness of LaTeX math, figure/diagram content, or table structure. These exist purely as a reference point: they show what "off-the-shelf OCR" achieves on the same handwriting, so the improvement from prompting Qwen can be measured rather than assumed.
+## Methods compared
 
-### 2. Zero-shot Qwen2.5-VL
+### 1. Zero-shot baselines
 
-Qwen2.5-VL can be run directly on an image with a simple instruction (e.g. "transcribe this image") and no examples. This gives a reasonable baseline transcription, but in practice it is inconsistent about formatting: it may skip LaTeX delimiters for equations, miss degree symbols, or describe diagrams inconsistently from one run to the next.
+- **Tesseract** — general-purpose OCR with an Otsu-threshold binarization pass. No domain awareness; returns plain text.
+- **PaddleOCR** — general-purpose multilingual OCR. No domain awareness; returns plain text.
+- **Nougat** (`facebook/nougat-base`, ICLR 2024) — a transformer trained specifically on academic PDFs, included for its native LaTeX math output (relevant to dosage formulae and concentration calculations). Its preprocessing is reimplemented manually in this pipeline (crop margin → thumbnail → pad → rescale → normalize) to avoid a known `huggingface_hub` strict-validation bug that otherwise raises `StrictDataclassFieldValidationError` on Nougat's saved config.
 
-### 3. Few-shot Qwen2.5-VL (used in this pipeline)
+### 2. Few-shot Qwen2.5-VL (this pipeline's primary method)
 
-`run_ocr()` is the core method used here. It prompts Qwen2.5-VL with:
-- A detailed system prompt (`SYSTEM_PROMPT_TEXT`) specifying exact rules for line breaks, LaTeX math delimiters (`$...$` / `$$...$$`), arrows/reaction notation, figure/diagram description format, and table fidelity.
-- One **few-shot example**: an example image paired with a hand-written "ideal" transcription (`FEW_SHOT_ASSISTANT_OUTPUT`), demonstrating the exact `[FIGURE: ...]` tag format expected for hand-drawn chemical structures and reactions.
-- The real target image, with an instruction to transcribe it the same way.
+`run_ocr()` prompts Qwen2.5-VL-7B-Instruct with a prescription-specific system prompt (`SYSTEM_PROMPT_TEXT`) covering:
 
-The few-shot example anchors the model's output format far more reliably than instructions alone. Particularly for the `[FIGURE: ...]` tagging behavior, which is difficult to specify purely in words. 
+- **Patient & prescriber info** — name, age, date, registration number, prescriber name/designation/clinic, extracted on separate lines.
+- **Structured drug entries** — drug name → dosage/strength → route → frequency/duration → special instructions, in that exact order, preserving Rx numbering.
+- **Medical abbreviations** — OD, BD, TDS, QID, PRN, SOS, IM, IV, SC, PO, NPO, etc. preserved verbatim, never expanded.
+- **Dosage notation** — inline LaTeX (`$...$` / `$$...$$`) for calculations and concentrations; degrees always as `$^\circ$`.
+- **Symbols and arrows** — →, ↑, ↓, ± preserved exactly as written.
+- **Diagrams** — anatomical sketches or injection-site markers described using a `[FIGURE: ...]` tag.
+- **Tables** — lab values or vitals rendered as markdown tables, values preserved exactly (no rounding, inference, or correction).
+- **General fidelity** — misspellings, crossed-out text (`~~crossed~~`), and corrections (`[corrected: original → new]`) preserved; illegible content marked `[illegible]`; no markdown code fences in output.
 
-Note: The qwen after specific instructions cannot produce inline latex formulaes using '\$' delimiters.
-Therefore after generation, a regex cleanup pass (`clean_latex_delimiters()`) normalizes any stray `\[...\]`/`\(...\)` delimiters or markdown code fences the model may still produce, guaranteeing consistent `$...$`/`$$...$$` formatting in the final output regardless of model drift.
+A one-shot example (`FEW_SHOT_ASSISTANT_OUTPUT`) — a fully transcribed sample prescription pad — anchors this exact output format more reliably than instructions alone.
 
-A fourth, optional pass (`run_critique()`) sends the Qwen transcription back to the model along with the original rules, asking it to identify which rules were not followed — useful for spotting systematic formatting issues without manually re-reading every output. 
-There is scope for future improvements here, where we can make this more aggresive in order to improve the output.
+A post-processing pass (`clean_latex_delimiters()`) normalizes any stray `\[...\]` / `\(...\)` delimiters or markdown code fences the model may still produce, regardless of prompt compliance.
 
 ---
 
@@ -52,21 +62,28 @@ pip install -r requirements.txt
 
 ### 3. Install Tesseract (system binary)
 
-`pytesseract` is a Python wrapper — it requires the actual Tesseract OCR engine to be installed separately. The easiest no-root install (works on shared/cluster environments) is via conda-forge:
+`pytesseract` is a Python wrapper — it requires the actual Tesseract engine installed separately. No-root install via conda-forge:
 
 ```bash
 conda install -c conda-forge tesseract
 ```
 
-Verify the install:
+Verify:
 
 ```bash
 tesseract --version
 ```
 
-### 4. Set your Hugging Face cache directory (optional)
+### 4. Install Nougat's optional dependencies
 
-Qwen2.5-VL-7B-Instruct (~16GB) downloads on first run. To control where it's cached (e.g. on a shared cluster with limited home-directory quota), edit `CACHE_DIR` near the top of `ocr_pipeline.py`:
+```bash
+pip install nltk python-Levenshtein --break-system-packages
+python3 -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
+```
+
+### 5. Set your Hugging Face cache directory
+
+Qwen2.5-VL-7B-Instruct (~16GB) and Nougat (~1.3GB) download on first run. Edit `CACHE_DIR` near the top of the pipeline script to control where they're cached:
 
 ```python
 CACHE_DIR = "/path/to/your/hf_cache"
@@ -74,15 +91,23 @@ CACHE_DIR = "/path/to/your/hf_cache"
 
 ---
 
-## Required input files
+## Required input layout
 
-Place these in the same directory as `ocr_pipeline.py` (or update the paths at the top of the script):
+```
+project/
+├── example.jpg              # one-shot example prescription image
+├── test_data/                # folder of prescription images to OCR
+│   ├── 001.jpg
+│   ├── 002.jpg
+│   └── ...
+├── ground_truth/             # matching ground-truth transcription per image
+│   ├── 001.txt               # filename stem must match the image stem
+│   ├── 002.txt
+│   └── ...
+└── ocr_pipeline.py
+```
 
-| File | Purpose |
-|---|---|
-| `example.jpg` | The few-shot example image (shown to the model alongside its ideal transcription) |
-| `test.jpg` | The target image you want transcribed |
-| `ground_truth.txt` | Ground truth transcription of `test.jpg`, used to compute WER |
+Images without a matching ground-truth file are skipped automatically (and logged) rather than causing the run to fail.
 
 ---
 
@@ -92,56 +117,87 @@ Place these in the same directory as `ocr_pipeline.py` (or update the paths at t
 python ocr_pipeline.py
 ```
 
-This runs all three OCR engines on `test.jpg`, scores each against the ground truth, and runs the critique pass on the Qwen output. Console output is a short summary; full results are written to the `outputs/` directory.
+This loads all four engines once, then iterates over every image in `test_data/`, running all four engines on each and writing results progressively. Console output is one line per engine per image:
 
 ```
-Qwen result        -> outputs/result.txt (WER: 9.05%)
-PaddleOCR result   -> outputs/result_paddleocr.txt (WER: 77.89%)
-Tesseract result   -> outputs/result_tesseract.txt (WER: 96.98%)
-Critique report    -> outputs/critique_report.txt
+Found 12 images in test_data
+Loading Qwen2.5-VL ...
+Loading Nougat ...
+Loading PaddleOCR ...
+
+── 001.jpg ────────────────────────────────────────
+  Qwen       WER:  0%  (0s)
+  PaddleOCR  WER:  0%  (0s)
+  Tesseract  WER:  0%  (0s)
+  Nougat     WER:  0%  (0s)
+...
+==============================================================
+  Done. 12 images processed.
+  Results  -> outputs/{qwen,paddleocr,tesseract,nougat}/
+  Summary  -> outputs/wer_summary.txt
+==============================================================
 ```
 
 ---
 
-## Output files (`outputs/`)
+## Output layout
 
-| File | Contents |
+```
+outputs/
+├── qwen/
+│   ├── 001.txt          # Qwen2.5-VL transcription per image
+│   ├── 002.txt
+│   └── ...
+├── paddleocr/
+│   ├── 001.txt
+│   └── ...
+├── tesseract/
+│   ├── 001.txt
+│   └── ...
+├── nougat/
+│   ├── 001.txt
+│   └── ...
+└── wer_summary.txt       # single combined report — no per-image breakdown
+```
+
+### Understanding `wer_summary.txt`
+
+The summary reports only the aggregate numbers across the entire batch — no individual diffs or per-word error listings:
+
+```
+==============================================================
+  OCR BATCH WER SUMMARY REPORT
+  Images evaluated : 12
+==============================================================
+Metric                              Qwen2.5-VL         PaddleOCR         Tesseract            Nougat
+----------------------------------------------------------------------------------------------------
+Avg WER (%)                               27.8             29.15             59.55             80.87
+Corpus WER (%)                           34.48             30.54             60.59             86.21
+Total substitutions                         26                38                98                37
+Total deletions                             27                19                23               136
+Total insertions                            17                 5                 2                 2
+Total hits                                 150               146                82                30
+Total ref words                            203               203               203               203
+```
+
+| Metric | Meaning |
 |---|---|
-| `result.txt` | Few-shot Qwen2.5-VL transcription — the main pipeline output, with LaTeX math and `[FIGURE: ...]` diagram descriptions |
-| `extracted_report.json` | Json format for Goal, condition, procedure and the results. |
-| `wer_report.txt` | WER score for the Qwen transcription vs. ground truth, plus a breakdown of substitutions, deletions, insertions, and hits, and a list of every misaligned word/phrase |
-| `result_paddleocr.txt` | Zero-shot PaddleOCR transcription (plain text, no LaTeX/figure awareness) |
-| `wer_report_paddleocr.txt` | Same WER breakdown, scored against the PaddleOCR output |
-| `result_tesseract.txt` | Zero-shot Tesseract transcription (plain text, no LaTeX/figure awareness) |
-| `wer_report_tesseract.txt` | Same WER breakdown, scored against the Tesseract output |
-| `critique_report.txt` | A second LLM pass listing which of the six prompt rules the Qwen transcription may have failed to follow |
+| **Avg WER (%)** | Mean of per-image WER scores — treats every image equally regardless of length. |
+| **Corpus WER (%)** | `(substitutions + deletions + insertions) / total reference words`, computed across the whole batch — more stable when image lengths vary, since it weights by word count rather than by image count. |
+| **Total substitutions** | Sum across all images — a ground-truth word replaced by an incorrect predicted word (e.g. a misread drug name). |
+| **Total deletions** | Sum across all images — a ground-truth word missing entirely from the prediction (e.g. a skipped instruction line). |
+| **Total insertions** | Sum across all images — extra words in the prediction not present in ground truth (e.g. hallucinated text). |
+| **Total hits** | Sum across all images — words that matched exactly. |
+| **Total ref words** | Total ground-truth word count across the whole batch — the denominator for corpus WER. |
 
-### Understanding the WER report
-
-Word Error Rate (WER) is computed as `(substitutions + deletions + insertions) / total ground-truth words`. Lower is better; 0% means a perfect match after normalization (lowercased, whitespace-collapsed).
-
-- **Substitutions** — a ground-truth word was replaced with a different predicted word (e.g. misread character).
-- **Deletions** — a ground-truth word is missing entirely from the prediction (e.g. skipped line or symbol).
-- **Insertions** — the prediction contains extra words not present in the ground truth (e.g. hallucinated text).
-- **Hits** — words that matched exactly.
-
-The `=== ERRORS ===` section beneath the summary lists every non-matching chunk side-by-side (`GT` vs `PRED`), which is the fastest way to spot a recurring failure pattern (e.g. consistently dropped degree symbols, or a specific Greek letter being misread) worth fixing in the prompt.
-
-> **Note:** because the Qwen output includes LaTeX delimiters and `[FIGURE: ...]` tags, its WER is only meaningful if your ground-truth file (`ground_truth.txt`) uses the same formatting conventions.
+> **Note:** WER normalization strips `[FIGURE: ...]`, `[illegible]`, and `[Not Specified: ...]` tags before scoring, so these formatting tokens don't penalize or inflate any engine's score. Since only Qwen produces these tags by design, this keeps the comparison against the plain-text baselines (PaddleOCR, Tesseract) fair.
 
 ---
 
-## Notes and observations
+## Notes
 
-- The results show some issues, with one degree sign but predicts all the signs except for that.
-- The results also only omits one out of two scratched out numbers.
-- Qwen2.5-VL-7B-Instruct requires a GPU with sufficient VRAM (recommended: ≥16GB) for `float16` inference at the default `max_new_tokens=1024`.
-- The few-shot prompt format and rules can be edited directly in `SYSTEM_PROMPT_TEXT` and `FEW_SHOT_ASSISTANT_OUTPUT` near the top of `ocr_pipeline.py`.
-
-
----
-
-## Future Possible Research work
-
-- Finetuning method, Using Qwen or other synthetic methods to create ground truths on specific chemistry or science Lab reports in order to get create a Dataset for Lora finetuning a smaller VLM model specifially for the required format of the output. This will reduce the compute requirements and make the model more faster.
-
+- Qwen2.5-VL-7B-Instruct requires a GPU with ≥16GB VRAM recommended for `float16` inference.
+- All four models load once at the start of the run and are reused across every image — this matters most for PaddleOCR and Nougat, which are otherwise expensive to reinitialize per image.
+- The prompt, few-shot example, and prescription field schema can be edited directly in `SYSTEM_PROMPT_TEXT` and `FEW_SHOT_ASSISTANT_OUTPUT` near the top of `ocr_pipeline.py`.
+- If PaddleOCR raises `NotImplementedError: ConvertPirAttribute2RuntimeAttribute`, this is a known PaddlePaddle 3.3.x regression — `enable_mkldnn=False` (already set in this pipeline) works around it.
+- If Nougat returns blank output on a given image, check the console diagnostic for the pixel tensor stats — Nougat is trained on printed academic PDFs and may produce empty or short output on heavily cursive handwriting that's far outside its training distribution; this is expected behavior for that baseline, not a bug.
